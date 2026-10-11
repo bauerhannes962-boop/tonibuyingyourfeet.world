@@ -2,14 +2,28 @@
 (function(root){
  'use strict';
  const CAP=1000000000,BETS=[10,25,50,100],MINE_MULT=[0,1.25,1.6,2.2,3.1,4.8,8,20],WHEEL=[0,2,0,3,0,2,0,5];
+ const UINT_MAX=4294967295,ROAD_MAX_MULT=1000000000;
+ // Each next lane is riskier. A nonzero survival chance remains, with no final lane.
+ const roadRisk=step=>.18+.77*(-Math.expm1(-Math.max(0,step-1)/12));
+ const roadMultipliers=[1];
+ function roadMultiplier(step){
+  if(!Number.isSafeInteger(step)||step<0)return 1;
+  // The point cap is reached well before this bound; very large lane numbers stay O(1).
+  const n=Math.min(step,100);
+  while(roadMultipliers.length<=n){const i=roadMultipliers.length;roadMultipliers.push(Math.min(ROAD_MAX_MULT,roadMultipliers[i-1]*(i===1?.96:1)/(1-roadRisk(i))));}
+  return Math.floor(roadMultipliers[n]*100)/100;
+ }
+ function roadRandom(seed){let x=seed>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return x>>>0;}
+ const roadStepNumber=n=>Number.isSafeInteger(n)&&n>=0&&n<Number.MAX_SAFE_INTEGER;
  const copy=x=>JSON.parse(JSON.stringify(x));
  const integer=(n,min=0,max=CAP)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
- const fresh=()=>({version:2,balance:2500,rounds:0,wins:0,best:0,history:[],last:{},mines:null});
+ const fresh=()=>({version:2,balance:2500,rounds:0,wins:0,best:0,history:[],last:{},mines:null,road:null});
  function validResult(game,result){
   if(game==='slots')return Array.isArray(result)&&result.length===3&&result.every(n=>integer(n,0,4));
   if(game==='wheel')return integer(result,0,7);
   if(game==='coin')return integer(result,0,1);
   if(game==='dice')return integer(result,1,6);
+  if(game==='road')return result&&['crash','cashout','cancel'].includes(result.status)&&roadStepNumber(result.step)&&(result.status==='cancel'||result.step>0);
   if(game!=='mines'||!result||typeof result!=='object')return false;
   const {bombs,open,hit}=result;
   return Array.isArray(bombs)&&bombs.length===2&&new Set(bombs).size===2&&bombs.every(n=>integer(n,0,8))&&Array.isArray(open)&&open.length<=7&&new Set(open).size===open.length&&open.every(n=>integer(n,0,8)&&!bombs.includes(n))&&(hit===null||bombs.includes(hit));
@@ -18,14 +32,20 @@
   if(!raw||raw.version!==2||!integer(raw.balance))return fresh();
   const s=fresh();s.balance=raw.balance;
   for(const k of ['rounds','wins','best'])if(integer(raw[k]))s[k]=raw[k];
-  const games=['slots','wheel','coin','dice','mines'];
+  const games=['slots','wheel','coin','dice','mines','road'];
   if(Array.isArray(raw.history))s.history=raw.history.filter(r=>r&&games.includes(r.game)&&BETS.includes(r.bet)&&integer(r.payout)&&typeof r.detail==='string').slice(0,6).map(r=>({game:r.game,bet:r.bet,payout:r.payout,detail:r.detail.slice(0,100)}));
   if(raw.last&&typeof raw.last==='object')for(const game of games){const r=raw.last[game];if(r&&integer(r.payout)&&BETS.includes(r.bet)&&typeof r.detail==='string'&&validResult(game,r.result))s.last[game]={game,bet:r.bet,payout:r.payout,detail:r.detail.slice(0,100),result:copy(r.result)};}
   const m=raw.mines;
   if(m&&BETS.includes(m.bet)&&Array.isArray(m.bombs)&&m.bombs.length===2&&new Set(m.bombs).size===2&&m.bombs.every(n=>integer(n,0,8))&&Array.isArray(m.open)&&m.open.length<7&&new Set(m.open).size===m.open.length&&m.open.every(n=>integer(n,0,8)&&!m.bombs.includes(n)))s.mines={bet:m.bet,bombs:[...m.bombs],open:[...m.open]};
+  const r=raw.road;
+  if(!s.mines&&r&&BETS.includes(r.bet)&&roadStepNumber(r.step)){
+   if(r.version===2&&integer(r.seed,1,UINT_MAX))s.road={version:2,bet:r.bet,step:r.step,seed:r.seed};
+   // Deterministically migrate a running version-9 road without charging the stake again.
+   else if(integer(r.step,0,11)&&integer(r.crashAt,r.step+1,13))s.road={version:2,bet:r.bet,step:r.step,seed:roadRandom((r.crashAt*2654435761+r.step)>>>0)||1};
+  }
   return s;
  }
- function check(s,bet){if(s.mines)throw Error('Erst die laufende Minenrunde beenden.');if(!BETS.includes(bet))throw Error('Bitte einen gültigen Einsatz wählen.');if(s.balance<bet)throw Error('Zu wenig Feet Coins. Lade kostenlos Feet Coins nach.');}
+ function check(s,bet){if(s.mines||s.road)throw Error('Erst die laufende Runde beenden.');if(!BETS.includes(bet))throw Error('Bitte einen gültigen Einsatz wählen.');if(s.balance<bet)throw Error('Zu wenig Feet Coins. Lade kostenlos Feet Coins nach.');}
  function record(s,game,bet,payout,detail,result){
   s.balance=Math.min(CAP,s.balance+payout);s.rounds=Math.min(CAP,s.rounds+1);if(payout>bet)s.wins=Math.min(CAP,s.wins+1);s.best=Math.max(s.best,payout);
   const r={game,bet,payout,detail,result};s.last[game]=r;s.history.unshift({game,bet,payout,detail});s.history=s.history.slice(0,6);return s;
@@ -53,6 +73,27 @@
  function collect(state){if(!state.mines||!state.mines.open.length)throw Error('Öffne zuerst ein sicheres Feld.');const s=copy(state),m=s.mines;s.mines=null;return record(s,'mines',m.bet,Math.floor(m.bet*MINE_MULT[m.open.length]),m.open.length+' sichere Felder · '+MINE_MULT[m.open.length]+'×',{bombs:m.bombs,open:m.open,hit:null});}
  function cancel(state){if(!state.mines)throw Error('Keine aktive Minenrunde.');const s=copy(state),m=s.mines;s.mines=null;return record(s,'mines',m.bet,0,'Runde abgebrochen',{bombs:m.bombs,open:m.open,hit:null});}
  function refill(state){const s=copy(state);s.balance=Math.min(CAP,s.balance+1000);return s;}
- const api={CAP,BETS,MINE_MULT,WHEEL,fresh,clean,instant,startMines,reveal,collect,cancel,refill};
+ const roadValue=(r,available=CAP)=>Math.min(available,CAP,Math.floor(r.bet*roadMultiplier(r.step)+1e-7));
+ function startRoad(state,bet,seed){
+  check(state,bet);
+  if(!integer(seed,1,UINT_MAX))throw Error('Ungültige Straßenrunde.');
+  const s=copy(state);s.balance-=bet;s.road={version:2,bet,step:0,seed};delete s.last.road;return s;
+ }
+ function stepRoad(state){
+  if(!state.road)throw Error('Starte zuerst eine Straßenrunde.');
+  const s=copy(state),r=s.road;r.step++;r.seed=roadRandom(r.seed);
+  if(r.seed/4294967296<roadRisk(r.step)){s.road=null;return record(s,'road',r.bet,0,'Auto auf Spur '+r.step+' · Fuß überfahren',{step:r.step,status:'crash'});}
+  return s;
+ }
+ function collectRoad(state){
+  if(!state.road||!state.road.step)throw Error('Überquere zuerst eine Spur.');
+  const s=copy(state),r=s.road;s.road=null;
+  return record(s,'road',r.bet,roadValue(r,CAP-s.balance),'Auf Spur '+r.step+' gesichert · '+roadMultiplier(r.step).toLocaleString('de-AT')+'×',{step:r.step,status:'cashout',factor:roadMultiplier(r.step)});
+ }
+ function cancelRoad(state){
+  if(!state.road)throw Error('Keine aktive Straßenrunde.');
+  const s=copy(state),r=s.road;s.road=null;return record(s,'road',r.bet,0,'Straßenrunde abgebrochen',{step:r.step,status:'cancel'});
+ }
+ const api={CAP,BETS,MINE_MULT,WHEEL,roadRisk,roadMultiplier,roadRandom,fresh,clean,instant,startMines,reveal,collect,cancel,refill,roadValue,startRoad,stepRoad,collectRoad,cancelRoad};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FootArcade=api;
 })(typeof window!=='undefined'?window:globalThis);
