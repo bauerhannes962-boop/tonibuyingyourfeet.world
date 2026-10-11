@@ -1,0 +1,3 @@
+'use strict';
+document.querySelectorAll('.discord-name').forEach(el=>el.textContent='@'+window.TONI_CONFIG.discord.replace(/^@/,''));
+document.querySelector('#privacy-delete')?.addEventListener('click',()=>{try{localStorage.removeItem('toni-sockpot-v1');localStorage.removeItem('footverse-arcade-v2');document.querySelector('#privacy-status').textContent='Spielstand gelöscht. Deine Feet Coins sind jetzt im digitalen Socken-Nirwana.';}catch{document.querySelector('#privacy-status').textContent='Der Browser erlaubt hier keinen Zugriff auf den Speicher. Du kannst Website-Daten in deinen Browsereinstellungen löschen.';}});
