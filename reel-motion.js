@@ -11,7 +11,7 @@
   return {distance:(6+reel*2)*5+mod(to-from),duration:2200+reel*700};
  }
  function create(elements,icons){
-  let symbols=[0,1,3],active=null,frame=0;
+  let symbols=[0,1,3],active=null,frame=0,stops=[];
   function stripFor(el,from,length){
    const strip=document.createElement('div');strip.className='reel-strip';strip.setAttribute('aria-hidden','true');
    for(let n=0;n<length;n++){const cell=document.createElement('span');cell.className='reel-symbol';cell.textContent=icons[mod(from+n-1)];strip.append(cell);}
@@ -25,7 +25,7 @@
   function show(next){if(active)return;symbols=[...next];elements.forEach((el,i)=>settle(el,symbols[i],i));}
   function finish(){
    if(!active)return;
-   const round=active;active=null;cancelAnimationFrame(frame);show(round.outcome);round.done();
+   const round=active;active=null;cancelAnimationFrame(frame);show(round.outcome);stops.forEach(a=>a.cancel());stops=[];round.done();
   }
   function spin(outcome,animate,done){
    if(active)return;
@@ -42,10 +42,10 @@
     const elapsed=now-start;
     reels.forEach((r,i)=>{
      if(r.stopped)return;
-     if(elapsed>=r.duration){r.stopped=true;settle(elements[i],outcome[i],i);}
+     if(elapsed>=r.duration){r.stopped=true;settle(elements[i],outcome[i],i);stops.push(elements[i].animate([{transform:'translateY(0)'},{transform:'translateY(5px)',offset:.35},{transform:'translateY(-2px)',offset:.7},{transform:'translateY(0)'}],{duration:240,easing:'ease-out'}));}
      else position(r.strip,1+r.distance*progress(elapsed/r.duration));
     });
-    if(reels.every(r=>r.stopped))finish();else frame=requestAnimationFrame(tick);
+    if(reels.every(r=>r.stopped)&&elapsed>=reels[2].duration+260)finish();else frame=requestAnimationFrame(tick);
    }
    frame=requestAnimationFrame(tick);
   }

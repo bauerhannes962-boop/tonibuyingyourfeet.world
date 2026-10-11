@@ -13,7 +13,7 @@
    const el=document.createElement('div'),numberEl=document.createElement('small'),badge=document.createElement('b');
    badge.className='road-mult';
    const car=document.createElement('i'),barrier=document.createElement('span');
-   car.className='road-car';barrier.className='road-barrier';
+   car.className='road-car';barrier.className='road-barrier';const trail=document.createElement('span'),lights=document.createElement('span');trail.className='road-speed-trail';lights.className='road-headlight-beams';car.append(trail,lights);
    const lane={el,numberEl,badge,car,barrier,index};el.append(numberEl,badge,car,barrier);updateTile(lane,index);return lane;
   }
   function updateTile(tile,index){
@@ -23,7 +23,7 @@
    tile.el.style.setProperty('--car-color',['#e4bdff','#d5ef88','#9edee8','#e9bb91','#bac3ed'][index%5]);
    tile.el.style.setProperty('--traffic-time',(3.3-engine.roadRisk(Math.max(1,index))*1.9+(index%3)*.28)+'s');
    tile.el.style.setProperty('--traffic-delay',(-index*.731%5)+'s');
-   tile.car.style.animation='';tile.car.style.transform='';tile.car.style.opacity='';
+   tile.car.style.animation='';tile.car.style.transform='';tile.car.style.opacity='';tile.car.style.setProperty('--speed-trail','.08');
   }
   function size(){return track.getBoundingClientRect().width/WINDOW||90;}
   function targetCamera(step){return Math.max(0,Math.min(WINDOW*size()-viewport.clientWidth,(step-base+.5)*size()-viewport.clientWidth*.42));}
@@ -90,7 +90,7 @@
     let carY;
     if(crash)carY=following&&t>=nextEntry?-135+speed*(t-nextEntry):carStart+speed*t;
     else carY=carStart+speed*t+.5*acceleration*t*t;
-    tile.car.style.transform=`translate3d(0,${Math.min(carEnd,carY)}px,0)`;
+    tile.car.style.transform=`translate3d(0,${Math.min(carEnd,carY)}px,0)`;tile.car.style.setProperty('--speed-trail',crash?'.08':Math.min(1,(speed+acceleration*t)*.5));
     if(crash&&t>=contact){
      if(!hit){hit=true;runner.classList.remove('walking');runner.classList.add('hit');root.classList.add('road-impact-now');impact.hidden=false;}
      const decay=Math.max(0,1-(t-contact)/230);world.style.transform=`translate3d(${Math.sin(t*.13)*4*decay}px,${Math.cos(t*.15)*2*decay}px,0)`;

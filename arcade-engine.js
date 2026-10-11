@@ -1,7 +1,7 @@
 /* Gemeinsame, rein lokale Regeln für kostenlose Spielpunkte. */
 (function(root){
  'use strict';
- const CAP=1000000000,BETS=[10,25,50,100],MINE_MULT=[0,1.25,1.6,2.2,3.1,4.8,8,20],WHEEL=[0,2,0,3,0,2,0,5];
+ const CAP=1000000000,BETS=[1,5,10,25,50,100],MINE_MULT=[0,1.25,1.6,2.2,3.1,4.8,8,20],WHEEL=[0,2,0,3,0,2,0,5];
  const UINT_MAX=4294967295,ROAD_MAX_MULT=1000000000;
  // Each next lane is riskier. A nonzero survival chance remains, with no final lane.
  const roadRisk=step=>.18+.77*(-Math.expm1(-Math.max(0,step-1)/12));
@@ -17,8 +17,13 @@
  const roadStepNumber=n=>Number.isSafeInteger(n)&&n>=0&&n<Number.MAX_SAFE_INTEGER;
  const copy=x=>JSON.parse(JSON.stringify(x));
  const integer=(n,min=0,max=CAP)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
- const fresh=()=>({version:2,balance:2500,rounds:0,wins:0,best:0,history:[],last:{},mines:null,road:null});
+ const fresh=()=>({version:2,balance:100,rounds:0,wins:0,best:0,history:[],last:{},mines:null,road:null,blackjack:null});
  function validResult(game,result){
+  if(game==='blackjack')return result&&['win','lose','push','blackjack'].includes(result.status)&&Array.isArray(result.player)&&Array.isArray(result.dealer)&&[...result.player,...result.dealer].every(n=>integer(n,0,51));
+  if(game==='roulette')return integer(result,0,36);
+  if(game==='plinko')return integer(result,0,8);
+  if(game==='limbo')return typeof result==='number'&&Number.isFinite(result)&&result>=1&&result<=1000;
+  if(game==='keno')return result&&Array.isArray(result.draw)&&result.draw.length===5&&new Set(result.draw).size===5&&result.draw.every(n=>integer(n,1,20))&&Array.isArray(result.pick)&&result.pick.length===3&&new Set(result.pick).size===3&&result.pick.every(n=>integer(n,1,20));
   if(game==='slots')return Array.isArray(result)&&result.length===3&&result.every(n=>integer(n,0,4));
   if(game==='wheel')return integer(result,0,7);
   if(game==='coin')return integer(result,0,1);
@@ -32,9 +37,10 @@
   if(!raw||raw.version!==2||!integer(raw.balance))return fresh();
   const s=fresh();s.balance=raw.balance;
   for(const k of ['rounds','wins','best'])if(integer(raw[k]))s[k]=raw[k];
-  const games=['slots','wheel','coin','dice','mines','road'];
-  if(Array.isArray(raw.history))s.history=raw.history.filter(r=>r&&games.includes(r.game)&&BETS.includes(r.bet)&&integer(r.payout)&&typeof r.detail==='string').slice(0,6).map(r=>({game:r.game,bet:r.bet,payout:r.payout,detail:r.detail.slice(0,100)}));
-  if(raw.last&&typeof raw.last==='object')for(const game of games){const r=raw.last[game];if(r&&integer(r.payout)&&BETS.includes(r.bet)&&typeof r.detail==='string'&&validResult(game,r.result))s.last[game]={game,bet:r.bet,payout:r.payout,detail:r.detail.slice(0,100),result:copy(r.result)};}
+  const games=['blackjack','slots','wheel','coin','dice','mines','road','roulette','plinko','limbo','keno'];
+  const validBet=r=>BETS.includes(r.bet)||(r.game==='blackjack'&&BETS.some(n=>n*2===r.bet));
+  if(Array.isArray(raw.history))s.history=raw.history.filter(r=>r&&games.includes(r.game)&&validBet(r)&&integer(r.payout)&&typeof r.detail==='string').slice(0,6).map(r=>({game:r.game,bet:r.bet,payout:r.payout,detail:r.detail.slice(0,100),...(validResult(r.game,r.result)?{result:copy(r.result)}:{})}));
+  if(raw.last&&typeof raw.last==='object')for(const game of games){const r=raw.last[game];if(r&&integer(r.payout)&&validBet(r)&&typeof r.detail==='string'&&validResult(game,r.result))s.last[game]={game,bet:r.bet,payout:r.payout,detail:r.detail.slice(0,100),result:copy(r.result),...(game==='limbo'?{pick:[2,5,10].includes(r.pick)?r.pick:Number(r.detail.match(/Ziel (2|5|10)×/)?.[1])||2}:{})};}
   const m=raw.mines;
   if(m&&BETS.includes(m.bet)&&Array.isArray(m.bombs)&&m.bombs.length===2&&new Set(m.bombs).size===2&&m.bombs.every(n=>integer(n,0,8))&&Array.isArray(m.open)&&m.open.length<7&&new Set(m.open).size===m.open.length&&m.open.every(n=>integer(n,0,8)&&!m.bombs.includes(n)))s.mines={bet:m.bet,bombs:[...m.bombs],open:[...m.open]};
   const r=raw.road;
@@ -43,12 +49,17 @@
    // Deterministically migrate a running version-9 road without charging the stake again.
    else if(integer(r.step,0,11)&&integer(r.crashAt,r.step+1,13))s.road={version:2,bet:r.bet,step:r.step,seed:roadRandom((r.crashAt*2654435761+r.step)>>>0)||1};
   }
+  const bj=raw.blackjack;
+  if(!s.mines&&!s.road&&bj&&BETS.includes(bj.bet)&&Array.isArray(bj.player)&&bj.player.length>=2&&Array.isArray(bj.dealer)&&bj.dealer.length===2&&Array.isArray(bj.deck)){
+   const cards=[...bj.player,...bj.dealer,...bj.deck];
+   if(cards.length===52&&new Set(cards).size===52&&cards.every(n=>integer(n,0,51))&&handValue(bj.player)<21&&handValue(bj.dealer)!==21)s.blackjack={bet:bj.bet,player:[...bj.player],dealer:[...bj.dealer],deck:[...bj.deck]};
+  }
   return s;
  }
- function check(s,bet){if(s.mines||s.road)throw Error('Erst die laufende Runde beenden.');if(!BETS.includes(bet))throw Error('Bitte einen gültigen Einsatz wählen.');if(s.balance<bet)throw Error('Zu wenig Feet Coins. Lade kostenlos Feet Coins nach.');}
- function record(s,game,bet,payout,detail,result){
+ function check(s,bet){if(s.mines||s.road||s.blackjack)throw Error('Erst die laufende Runde beenden.');if(!BETS.includes(bet))throw Error('Bitte einen gültigen Einsatz wählen.');if(s.balance<bet)throw Error('Zu wenig Feet Coins. Lade kostenlos Feet Coins nach.');}
+ function record(s,game,bet,payout,detail,result,pick){
   s.balance=Math.min(CAP,s.balance+payout);s.rounds=Math.min(CAP,s.rounds+1);if(payout>bet)s.wins=Math.min(CAP,s.wins+1);s.best=Math.max(s.best,payout);
-  const r={game,bet,payout,detail,result};s.last[game]=r;s.history.unshift({game,bet,payout,detail});s.history=s.history.slice(0,6);return s;
+  const r={game,bet,payout,detail,result,...(game==='limbo'?{pick}:{})};s.last[game]=r;s.history.unshift({game,bet,payout,detail,result:copy(result)});s.history=s.history.slice(0,6);return s;
  }
  function instant(state,game,bet,pick,outcome){
   check(state,bet);const s=copy(state);let payout=0,detail='',result=outcome;
@@ -61,8 +72,19 @@
    if(![0,1].includes(pick)||![0,1].includes(outcome))throw Error('Wähle Fuß oder Socke.');payout=pick===outcome?bet*2:0;detail=(outcome===0?'Fuß':'Socke')+' · '+(payout?'richtig getippt':'anders getippt');
   }else if(game==='dice'){
    if(![0,1].includes(pick)||!integer(outcome,1,6))throw Error('Wähle eine Würfelhälfte.');payout=(pick===0?outcome<=3:outcome>=4)?bet*2:0;detail='Gewürfelt: '+outcome+' · '+(payout?'richtig getippt':'andere Hälfte');
+  }else if(game==='roulette'){
+   if(!integer(outcome,0,36)||![0,1,2].includes(pick))throw Error('Ungültige Roulette-Auswahl.');
+   const color=outcome===0?2:RED.includes(outcome)?0:1;payout=color===pick?bet*(pick===2?36:2):0;detail='Roulette · '+outcome+' '+['Rot','Schwarz','Grün'][color];
+  }else if(game==='plinko'){
+   if(!integer(outcome,0,8))throw Error('Ungültiges Plinko-Fach.');payout=Math.floor(bet*PLINKO[outcome]);detail='Plinko · Fach '+(outcome+1)+' · '+PLINKO[outcome].toLocaleString('de-AT')+'×';
+  }else if(game==='limbo'){
+   if(![2,5,10].includes(pick)||!integer(outcome,0,999999))throw Error('Ungültiges Limbo-Ergebnis.');
+   result=Math.max(1,Math.min(1000,Math.floor(.96/(1-outcome/1000000)*100)/100));payout=result>=pick?bet*pick:0;detail='Limbo · '+result.toFixed(2)+'× / Ziel '+pick+'×';
+  }else if(game==='keno'){
+   if(!Array.isArray(pick)||pick.length!==3||new Set(pick).size!==3||pick.some(n=>!integer(n,1,20))||!Array.isArray(outcome)||outcome.length!==5||new Set(outcome).size!==5||outcome.some(n=>!integer(n,1,20)))throw Error('Wähle drei Keno-Zahlen.');
+   const hits=pick.filter(n=>outcome.includes(n)).length;payout=bet*[0,1,4,40][hits];result={draw:[...outcome],pick:[...pick]};detail='Keno · '+hits+' von 3 Treffern';
   }else throw Error('Unbekanntes Spiel.');
-  s.balance-=bet;return record(s,game,bet,payout,detail,result);
+  s.balance-=bet;return record(s,game,bet,payout,detail,result,game==='limbo'?pick:undefined);
  }
  function startMines(state,bet,bombs){check(state,bet);if(!Array.isArray(bombs)||bombs.length!==2||new Set(bombs).size!==2||bombs.some(n=>!integer(n,0,8)))throw Error('Ungültiges Spielfeld.');const s=copy(state);s.balance-=bet;s.mines={bet,bombs:[...bombs],open:[]};delete s.last.mines;return s;}
  function reveal(state,index){
@@ -70,9 +92,9 @@
   if(m.bombs.includes(index)){s.mines=null;return record(s,'mines',m.bet,0,'Socke erwischt · Einsatz verloren',{bombs:m.bombs,open:m.open,hit:index});}
   m.open.push(index);if(m.open.length===7)return collect(s);return s;
  }
- function collect(state){if(!state.mines||!state.mines.open.length)throw Error('Öffne zuerst ein sicheres Feld.');const s=copy(state),m=s.mines;s.mines=null;return record(s,'mines',m.bet,Math.floor(m.bet*MINE_MULT[m.open.length]),m.open.length+' sichere Felder · '+MINE_MULT[m.open.length]+'×',{bombs:m.bombs,open:m.open,hit:null});}
+ function collect(state){if(!state.mines||!state.mines.open.length)throw Error('Öffne zuerst ein sicheres Feld.');const s=copy(state),m=s.mines;s.mines=null;return record(s,'mines',m.bet,Math.floor(m.bet*MINE_MULT[m.open.length]),m.open.length+(m.open.length===1?' sicheres Feld · ':' sichere Felder · ')+MINE_MULT[m.open.length].toLocaleString('de-AT')+'×',{bombs:m.bombs,open:m.open,hit:null});}
  function cancel(state){if(!state.mines)throw Error('Keine aktive Minenrunde.');const s=copy(state),m=s.mines;s.mines=null;return record(s,'mines',m.bet,0,'Runde abgebrochen',{bombs:m.bombs,open:m.open,hit:null});}
- function refill(state){const s=copy(state);s.balance=Math.min(CAP,s.balance+1000);return s;}
+ function refill(state){if(state.balance!==0||state.mines||state.road||state.blackjack)throw Error('100 Coins gibt es erst bei leerem Konto und ohne laufende Runde.');const s=copy(state);s.balance=100;return s;}
  const roadValue=(r,available=CAP)=>Math.min(available,CAP,Math.floor(r.bet*roadMultiplier(r.step)+1e-7));
  function startRoad(state,bet,seed){
   check(state,bet);
@@ -94,6 +116,29 @@
   if(!state.road)throw Error('Keine aktive Straßenrunde.');
   const s=copy(state),r=s.road;s.road=null;return record(s,'road',r.bet,0,'Straßenrunde abgebrochen',{step:r.step,status:'cancel'});
  }
- const api={CAP,BETS,MINE_MULT,WHEEL,roadRisk,roadMultiplier,roadRandom,fresh,clean,instant,startMines,reveal,collect,cancel,refill,roadValue,startRoad,stepRoad,collectRoad,cancelRoad};
+ const RED=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36],PLINKO=[12,3,1.2,.5,.2,.5,1.2,3,12];
+ function handValue(cards){let value=0,aces=0;for(const card of cards){const rank=card%13;value+=rank===0?11:Math.min(rank+1,10);if(rank===0)aces++;}while(value>21&&aces>0){value-=10;aces--;}return value;}
+ function finishBlackjack(s,doubled=false,natural=false){
+  const b=s.blackjack,stake=b.bet*(doubled?2:1),player=handValue(b.player);let dealer=handValue(b.dealer);
+  if(!natural&&player<=21){while(dealer<17){b.dealer.push(b.deck.pop());dealer=handValue(b.dealer);}}
+  const playerNatural=b.player.length===2&&player===21,dealerNatural=b.dealer.length===2&&dealer===21;
+  const status=player>21?'lose':dealerNatural?(playerNatural?'push':'lose'):playerNatural?'blackjack':dealer>21||player>dealer?'win':player===dealer?'push':'lose';
+  const payout=status==='push'?stake:status==='blackjack'?Math.floor(stake*2.5):status==='win'?stake*2:0;
+  const result={player:[...b.player],dealer:[...b.dealer],status};s.blackjack=null;
+  return record(s,'blackjack',stake,payout,'Blackjack · '+player+' : '+dealer+' · '+({win:'Gewonnen',lose:'Verloren',push:'Gleichstand',blackjack:'Blackjack!'}[status]),result);
+ }
+ function startBlackjack(state,bet,deck){
+  check(state,bet);if(!Array.isArray(deck)||deck.length!==52||new Set(deck).size!==52||deck.some(n=>!integer(n,0,51)))throw Error('Ungültiges Kartendeck.');
+  const s=copy(state),d=[...deck];s.balance-=bet;s.blackjack={bet,player:[d.pop()],dealer:[d.pop()],deck:d};s.blackjack.player.push(d.pop());s.blackjack.dealer.push(d.pop());delete s.last.blackjack;
+  return handValue(s.blackjack.player)===21||handValue(s.blackjack.dealer)===21?finishBlackjack(s,false,true):s;
+ }
+ function blackjackAction(state,action){
+  if(!state.blackjack||!['hit','stand','double'].includes(action))throw Error('Keine aktive Blackjack-Runde.');
+  const s=copy(state),b=s.blackjack;
+  if(action==='double'){if(b.player.length!==2||s.balance<b.bet)throw Error('Verdoppeln braucht zwei Karten und genug Coins.');s.balance-=b.bet;b.player.push(b.deck.pop());return finishBlackjack(s,true);}
+  if(action==='stand')return finishBlackjack(s);
+  b.player.push(b.deck.pop());return handValue(b.player)>=21?finishBlackjack(s):s;
+ }
+ const api={RED,PLINKO,handValue,startBlackjack,blackjackAction,CAP,BETS,MINE_MULT,WHEEL,roadRisk,roadMultiplier,roadRandom,fresh,clean,instant,startMines,reveal,collect,cancel,refill,roadValue,startRoad,stepRoad,collectRoad,cancelRoad};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FootArcade=api;
 })(typeof window!=='undefined'?window:globalThis);

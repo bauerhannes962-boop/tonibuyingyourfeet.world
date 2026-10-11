@@ -1,5 +1,5 @@
 /* Original Footverse road scene: endless street, detailed CSS vehicles and frame-synchronised movement. */
-.arcade-app .game-nav{grid-template-columns:repeat(6,minmax(0,1fr))}
+
 .arcade-app .game-nav [data-game=road]{border-color:#94fff288}
 .arcade-app .road-selected .game-body{grid-template-columns:minmax(0,1fr);gap:23px}
 .arcade-app .road-selected .game-panel{display:grid;grid-template-columns:1fr 1fr;gap:18px 28px}

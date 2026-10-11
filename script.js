@@ -8,9 +8,8 @@ const motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
 let effects=!motionQuery.matches;
 const euros=value=>new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(value));
 function notify(text){const toast=$('#toast');(document.querySelector('dialog[open]')||document.body).append(toast);clearTimeout(toastTimer);toast.textContent=text;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,4000);}
-function syncEffects(){document.body.classList.toggle('fx-off',!effects);$('#effects').setAttribute('aria-pressed',String(effects));$('#effects').setAttribute('aria-label',effects?'Animationen anhalten':'Animationen einschalten');$('#fx-state').textContent=effects?'ON':'OFF';if(!effects)$('#particle-layer').replaceChildren();}
-$('#effects').addEventListener('click',()=>{effects=!effects;syncEffects();});
-motionQuery.addEventListener?.('change',e=>{if(e.matches){effects=false;syncEffects();}});
+function syncEffects(){document.body.classList.toggle('fx-off',!effects);if(!effects)$('#particle-layer').replaceChildren();}
+motionQuery.addEventListener?.('change',e=>{effects=!e.matches;syncEffects();});
 function openOffer(motif){if(motif)fields.motif.value=motif;$('#form-screen').hidden=false;$('#message-screen').hidden=true;updateSummary();$('#offer-dialog').showModal();}
 $$('.open-offer').forEach(button=>button.addEventListener('click',()=>openOffer()));
 $$('[data-motif]').forEach(button=>button.addEventListener('click',()=>openOffer(button.dataset.motif)));
