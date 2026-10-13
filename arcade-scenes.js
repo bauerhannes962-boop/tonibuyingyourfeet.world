@@ -6,7 +6,7 @@
   const $=s=>root.querySelector(s),$$=s=>[...root.querySelectorAll(s)];
   let active=null,frame=0,animations=[],timers=[],wheelAngle=0,rouletteAngle=0,coinAngle=0,diceRotation=dicePose(1);
   const format=n=>n.toLocaleString('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
-  const theme={roulette:['EUROPEAN SINGLE ZERO','37 POCKETS'],plinko:['THE GRAVITY ROOM','ONE BALL. REAL BOUNCES.'],limbo:['FLIGHT CONTROL','TARGET LOCKED'],keno:['TONI’S NUMBER CLUB','LIVE DRAW / 05'],slots:['THE ORIGINAL SOCKPOT','THREE REELS. ONE LINE.'],wheel:['THE LUCK STUDIO','08 EQUAL SEGMENTS'],coin:['FEET OR SOCKS','THE COIN ROOM'],dice:['TONI’S DICE TABLE','ONE DIE. SIX SIDES.'],mines:['THE DIAMOND VAULT','07 GEMS / 02 SOCKS']};
+  const theme={roulette:['EUROPEAN SINGLE ZERO','37 POCKETS'],plinko:['THE GRAVITY ROOM','MULTIBALL / REAL COLLISIONS'],limbo:['FLIGHT CONTROL','TARGET LOCKED'],keno:['TONI’S NUMBER CLUB','LIVE DRAW / 05'],slots:['THE ORIGINAL SOCKPOT','THREE REELS. ONE LINE.'],wheel:['THE LUCK STUDIO','08 EQUAL SEGMENTS'],coin:['FEET OR SOCKS','THE COIN ROOM'],dice:['TONI’S DICE TABLE','ONE DIE. SIX SIDES.'],mines:['THE FOOT VAULT','07 FEET / 02 SOCKS']};
   for(const [game,words] of Object.entries(theme)){const el=document.createElement('div');el.className='scene-heading';const a=document.createElement('span'),b=document.createElement('b');a.textContent=words[0];b.textContent=words[1];el.append(a,b);$('#visual-'+game).prepend(el);}
   const colors=[];ORDER.forEach((n,i)=>{const el=document.createElement('span');el.className='roulette-pocket';el.textContent=n;el.style.setProperty('--pocket-angle',i*360/37+'deg');$('.roulette-pockets').append(el);const c=n===0?'#418b70':E.RED.includes(n)?'#b34d66':'#20242b';colors.push(c+' '+i*360/37+'deg '+(i+1)*360/37+'deg');});$('#roulette-disc').style.background='conic-gradient(from '+(-180/37)+'deg,'+colors.join(',')+')';
   for(let i=0;i<24;i++){const el=document.createElement('i');el.style.setProperty('--bulb-angle',i*15+'deg');$('.wheel-bulbs').append(el);}
@@ -22,7 +22,7 @@
   function limboDraw(value,target,progress=1){
    const x=44+progress*402,y=237-Math.min(1,Math.log(Math.max(1,value))/Math.log(Math.max(2,target*1.8)))*182;
    const controlY=237+(y-237)*.15,d='M44 237 Q '+(44+(x-44)*.54)+' '+controlY+' '+x+' '+y;
-   $('#limbo-curve').setAttribute('d',d);$('#limbo-area').setAttribute('d',d+' L'+x+' 250 L44 250 Z');$('#limbo-rocket').setAttribute('transform','translate('+x+' '+y+') rotate(-40)');
+   $('#limbo-curve').setAttribute('d',d);$('#limbo-area').setAttribute('d',d+' L'+x+' 250 L44 250 Z');$('#limbo-rocket').setAttribute('transform','translate('+x+' '+y+') rotate(-25)');
    const targetY=237-Math.min(1,Math.log(target)/Math.log(Math.max(2,target*1.8)))*182;$('#limbo-target').setAttribute('y1',targetY);$('#limbo-target').setAttribute('y2',targetY);$('#limbo-target-label').setAttribute('y',targetY-8);$('#limbo-target-label').textContent='ZIEL '+target+'×';$('#limbo-number').textContent=format(value);
   }
   function show(state,game,picks){
@@ -61,7 +61,7 @@
    }
    if(game==='limbo'){
     const result=state.last.limbo,target=result.pick,value=result.result;let started;$('#visual-limbo').dataset.flight='flying';$('.limbo-flight-status').textContent='FLUG LÄUFT …';
-    const tick=now=>{if(!active)return;if(started===undefined)started=now;const p=Math.min(1,(now-started)/(duration-400));limboDraw(Math.pow(value,p),target,p);if(p<1)frame=requestAnimationFrame(tick);else{$('#visual-limbo').dataset.flight=value>=target?'won':'crashed';$('.limbo-flight-status').textContent=value>=target?'ZIEL ERREICHT':'FLUG BEENDET';if(value<target)animate($('#limbo-rocket'),[{opacity:1},{opacity:.35,filter:'blur(1px)'}],{duration:350,fill:'forwards'});}};frame=requestAnimationFrame(tick);
+    const tick=now=>{if(!active)return;if(started===undefined)started=now;const p=Math.min(1,(now-started)/(duration-400));const climb=Math.log(value)*p,wave=Math.sin(p*Math.PI*4)*.55*Math.sin(p*Math.PI);limboDraw(Math.max(1,Math.exp(climb+wave)),target,p);if(p<1)frame=requestAnimationFrame(tick);else{$('#visual-limbo').dataset.flight=value>=target?'won':'crashed';$('.limbo-flight-status').textContent=value>=target?'ZIEL ERREICHT':'FLUG BEENDET';if(value<target)animate($('#limbo-rocket'),[{opacity:1},{opacity:.35,filter:'blur(1px)'}],{duration:350,fill:'forwards'});}};frame=requestAnimationFrame(tick);
    }
    if(game==='keno'){
     const picked=state.last.keno.result.pick;setKeno([],[]);$('.keno-draw-label').textContent='DIE TROMMEL MISCHT …';
@@ -73,7 +73,7 @@
    if(active)return;active={done};if(!animateMotion){finish();return;}
    const old=before.mines?.open??[],run=after.mines,result=after.last.mines?.result,bombs=run?[]:result?.bombs??[],opened=run?.open??result?.open??[];
    const cells=$$('.mine-cell');cells.forEach(el=>el.disabled=true);
-   function reveal(i,bomb){const cell=cells[i],inner=cell.querySelector('.mine-inner');cell.classList.add(bomb?'bomb':'safe');cell.querySelector('.mine-front').textContent=bomb?'🧦':'💎';cell.setAttribute('aria-label','Feld '+(i+1)+': '+(bomb?'Socke':'Diamant'));cell.classList.add('revealed');animate(inner,[{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:550,easing:'cubic-bezier(.2,.7,.25,1)',fill:'forwards'});}
+   function reveal(i,bomb){const cell=cells[i],inner=cell.querySelector('.mine-inner');cell.classList.add(bomb?'bomb':'safe');cell.querySelector('.mine-front').textContent=bomb?'🧦':'🦶';cell.setAttribute('aria-label','Feld '+(i+1)+': '+(bomb?'Socke':'Fuß'));cell.classList.add('revealed');animate(inner,[{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:550,easing:'cubic-bezier(.2,.7,.25,1)',fill:'forwards'});}
    if(index!==null)reveal(index,bombs.includes(index));
    if(!run){const rest=cells.map((_,i)=>i).filter(i=>!old.includes(i)&&i!==index);rest.forEach((i,n)=>schedule(()=>reveal(i,bombs.includes(i)),600+n*100));if(result?.hit!==null)animate($('.mine-grid'),[{transform:'translateX(0)'},{transform:'translateX(-7px)'},{transform:'translateX(7px)'},{transform:'translateX(0)'}],{duration:400,delay:350});schedule(finish,1200+rest.length*100);}else schedule(finish,700);
   }
