@@ -30,3 +30,6 @@ $$('.close-dialog').forEach(button=>button.addEventListener('click',()=>button.c
 $$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{const box=dialog.getBoundingClientRect();if(event.target===dialog&&(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom))dialog.close();}));
 $('#audio-button').addEventListener('click',()=>{$('#audio-dialog').showModal();$('#secret-audio').play().catch(()=>{});});$('#audio-dialog').addEventListener('close',()=>$('#secret-audio').pause());
 syncEffects();updateSummary();
+
+// Decorative motion rests outside the viewport; game timelines remain independent.
+if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>entries.forEach(entry=>entry.target.classList.toggle('motion-resting',!entry.isIntersecting)),{rootMargin:'120px'});document.querySelectorAll('.chamber,.aurora,.ticker').forEach(el=>observer.observe(el));}

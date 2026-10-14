@@ -159,6 +159,26 @@
   if(!cashout&&!crashed)return s;const factor=crashed?f.crash:Math.floor(value*100)/100;s.flight=null;
   return record(s,'flight',f.bet,crashed?0:Math.floor(f.bet*factor),'Foot Flight · '+(crashed?'Absturz bei ':'Gesichert bei ')+factor.toFixed(2)+'×',{status:crashed?'crash':'cashout',factor});
  }
- const api={dropPlinko,settlePlinko,flightFactor,startFlight,finishFlight,RED,PLINKO,handValue,startBlackjack,blackjackAction,CAP,BETS,MINE_MULT,WHEEL,roadRisk,roadMultiplier,roadRandom,fresh,clean,instant,startMines,reveal,collect,cancel,refill,roadValue,startRoad,stepRoad,collectRoad,cancelRoad};
+ // European single-zero table. Multipliers include the returned stake.
+ const ROULETTE_BETS=[];
+ function rouletteBet(id,label,numbers,kind,position={}){ROULETTE_BETS.push({id,label,numbers,mult:36/numbers.length,kind,...position});}
+ for(let n=0;n<=36;n++)rouletteBet('n'+n,String(n),[n],'number');
+ for(let c=0;c<12;c++){
+  const a=c*3+1;rouletteBet('street'+c,a+'–'+(a+2),[a,a+1,a+2],'street',{x:(c+.5)/12,y:1});
+  for(let r=0;r<3;r++){const n=a+2-r;if(c<11)rouletteBet('split'+n+'-'+(n+3),n+' / '+(n+3),[n,n+3],'split',{x:(c+1)/12,y:(r+.5)/3});if(r<2)rouletteBet('split'+(n-1)+'-'+n,(n-1)+' / '+n,[n-1,n],'split',{x:(c+.5)/12,y:(r+1)/3});
+   if(c<11&&r<2)rouletteBet('corner'+(n-1),[n-1,n,n+2,n+3].join(' / '),[n-1,n,n+2,n+3],'corner',{x:(c+1)/12,y:(r+1)/3});}
+  if(c<11)rouletteBet('six'+c,a+'–'+(a+5),Array.from({length:6},(_,i)=>a+i),'six',{x:(c+1)/12,y:1});
+ }
+ for(let n=1;n<=3;n++)rouletteBet('zero'+n,'0 / '+n,[0,n],'zero');
+ rouletteBet('trio012','0 / 1 / 2',[0,1,2],'zero');rouletteBet('trio023','0 / 2 / 3',[0,2,3],'zero');rouletteBet('firstfour','0 / 1 / 2 / 3',[0,1,2,3],'zero');
+ for(let i=0;i<3;i++){rouletteBet('dozen'+i,(i*12+1)+'–'+(i*12+12),Array.from({length:12},(_,n)=>i*12+n+1),'dozen');rouletteBet('column'+i,'Kolonne '+(i+1),Array.from({length:12},(_,n)=>n*3+i+1),'column');}
+ rouletteBet('red','Rot',RED,'outside');rouletteBet('black','Schwarz',Array.from({length:36},(_,i)=>i+1).filter(n=>!RED.includes(n)),'outside');
+ rouletteBet('even','Gerade',Array.from({length:18},(_,i)=>(i+1)*2),'outside');rouletteBet('odd','Ungerade',Array.from({length:18},(_,i)=>i*2+1),'outside');rouletteBet('low','1–18',Array.from({length:18},(_,i)=>i+1),'outside');rouletteBet('high','19–36',Array.from({length:18},(_,i)=>i+19),'outside');
+ function rouletteRound(state,ticket,outcome){
+  if(!Array.isArray(ticket)||!ticket.length||ticket.length>ROULETTE_BETS.length||new Set(ticket.map(b=>b.id)).size!==ticket.length||!integer(outcome,0,36))throw Error('Lege zuerst Chips auf den Tisch.');
+  let total=0,payout=0,hits=0;for(const b of ticket){const rule=ROULETTE_BETS.find(r=>r.id===b.id);if(!rule||!integer(b.amount,1))throw Error('Ungültiger Roulette-Einsatz.');total+=b.amount;if(rule.numbers.includes(outcome)){payout+=b.amount*rule.mult;hits++;}}
+  check(state,total);const s=copy(state);s.balance-=total;return record(s,'roulette',total,payout,'Roulette · '+outcome+' '+(outcome===0?'Grün':RED.includes(outcome)?'Rot':'Schwarz')+' · '+hits+' von '+ticket.length+' Feldern getroffen',outcome);
+ }
+ const api={ROULETTE_BETS,rouletteRound,dropPlinko,settlePlinko,flightFactor,startFlight,finishFlight,RED,PLINKO,handValue,startBlackjack,blackjackAction,CAP,BETS,MINE_MULT,WHEEL,roadRisk,roadMultiplier,roadRandom,fresh,clean,instant,startMines,reveal,collect,cancel,refill,roadValue,startRoad,stepRoad,collectRoad,cancelRoad};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.FootArcade=api;
 })(typeof window!=='undefined'?window:globalThis);

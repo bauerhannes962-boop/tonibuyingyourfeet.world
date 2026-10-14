@@ -11,7 +11,7 @@
   return {distance:(6+reel*2)*5+mod(to-from),duration:2200+reel*700};
  }
  function create(elements,icons){
-  let symbols=[0,1,3],active=null,frame=0,stops=[];
+  let symbols=[0,1,3],active=null,frame=0,stops=[],signature='';
   function stripFor(el,from,length){
    const strip=document.createElement('div');strip.className='reel-strip';strip.setAttribute('aria-hidden','true');
    for(let n=0;n<length;n++){const cell=document.createElement('span');cell.className='reel-symbol';cell.textContent=icons[mod(from+n-1)];strip.append(cell);}
@@ -22,13 +22,13 @@
    position(stripFor(el,symbol,3),1);el.classList.remove('spinning');
    el.setAttribute('aria-label',`Walze ${i+1}: ${icons[symbol]}`);
   }
-  function show(next){if(active)return;symbols=[...next];elements.forEach((el,i)=>settle(el,symbols[i],i));}
+  function show(next){if(active||signature===next.join(','))return;signature=next.join(',');symbols=[...next];elements.forEach((el,i)=>settle(el,symbols[i],i));}
   function finish(){
    if(!active)return;
    const round=active;active=null;cancelAnimationFrame(frame);show(round.outcome);stops.forEach(a=>a.cancel());stops=[];round.done();
   }
   function spin(outcome,animate,done){
-   if(active)return;
+   if(active)return;signature='';
    if(!animate){show(outcome);done();return;}
    const reels=elements.map((el,i)=>{
     const p=plan(symbols[i],outcome[i],i),strip=stripFor(el,symbols[i],p.distance+4);

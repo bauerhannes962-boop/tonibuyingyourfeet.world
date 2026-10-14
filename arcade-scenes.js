@@ -19,11 +19,13 @@
   function finish(){if(!active)return;const a=active;active=null;clear();a.done();}
   function transformDie(p){return 'rotateX(-16deg) rotateY(24deg) rotateX('+p.x+'deg) rotateY('+p.y+'deg) rotateZ(-8deg)';}
   function setKeno(draw,pick){const slots=$$('.keno-draw>span');slots.forEach((el,i)=>{el.textContent=draw[i]??'–';el.classList.toggle('hit',pick.includes(draw[i]));});$$('#keno-grid button').forEach(el=>{const n=+el.dataset.number;el.classList.toggle('drawn',draw.includes(n));el.classList.toggle('matched',draw.includes(n)&&pick.includes(n));});}
+  function limboValue(value,p){return Math.max(1,Math.exp(Math.log(value)*p+Math.sin(p*Math.PI*4)*.55*Math.sin(p*Math.PI)));}
   function limboDraw(value,target,progress=1){
-   const x=44+progress*402,y=237-Math.min(1,Math.log(Math.max(1,value))/Math.log(Math.max(2,target*1.8)))*182;
-   const controlY=237+(y-237)*.15,d='M44 237 Q '+(44+(x-44)*.54)+' '+controlY+' '+x+' '+y;
-   $('#limbo-curve').setAttribute('d',d);$('#limbo-area').setAttribute('d',d+' L'+x+' 250 L44 250 Z');$('#limbo-rocket').setAttribute('transform','translate('+x+' '+y+') rotate(-25)');
-   const targetY=237-Math.min(1,Math.log(target)/Math.log(Math.max(2,target*1.8)))*182;$('#limbo-target').setAttribute('y1',targetY);$('#limbo-target').setAttribute('y2',targetY);$('#limbo-target-label').setAttribute('y',targetY-8);$('#limbo-target-label').textContent='ZIEL '+target+'×';$('#limbo-number').textContent=format(value);
+   const point=p=>({x:44+p*402,y:237-Math.min(1,Math.log(limboValue(value,p))/Math.log(Math.max(2,target*1.8)))*182});
+   const count=Math.max(2,Math.ceil(progress*90)+1),points=Array.from({length:count},(_,i)=>point(progress*i/(count-1)));
+   const end=points.at(-1),previous=points.at(-2),d=points.map((p,i)=>(i?'L':'M')+p.x.toFixed(2)+' '+p.y.toFixed(2)).join(' '),angle=Math.atan2(end.y-previous.y,end.x-previous.x)*180/Math.PI+25;
+   $('#limbo-curve').setAttribute('d',d);$('#limbo-area').setAttribute('d',d+' L'+end.x+' 250 L44 250 Z');$('#limbo-rocket').setAttribute('transform','translate('+end.x+' '+end.y+') rotate('+angle+')');
+   const targetY=237-Math.min(1,Math.log(target)/Math.log(Math.max(2,target*1.8)))*182;$('#limbo-target').setAttribute('y1',targetY);$('#limbo-target').setAttribute('y2',targetY);$('#limbo-target-label').setAttribute('y',targetY-8);$('#limbo-target-label').textContent='ZIEL '+target+'×';$('#limbo-number').textContent=format(limboValue(value,progress));
   }
   function show(state,game,picks){
    if(active)return;const r=state.last[game];
@@ -53,15 +55,15 @@
    if(game==='roulette'){
     const from=rouletteAngle;rouletteAngle+=1800+((360-ORDER.indexOf(outcome)*360/37-from%360+360)%360);$('#roulette-number').textContent='…';
     play($('#roulette-disc'),[{transform:'rotate('+from+'deg)'},{transform:'rotate('+rouletteAngle+'deg)'}],{easing:'cubic-bezier(.1,.65,.12,1)'});
-    play($('.roulette-ball-track'),[{transform:$('.roulette-ball-track').style.transform||'rotate(0deg) scale(1.1)'},{transform:'rotate(-90deg) scale(1.1)',offset:.07},{transform:'rotate(-1200deg) scale(1.1)',offset:.66},{transform:'rotate(-1410deg) scale(.9)',offset:.88},{transform:'rotate(-1440deg) scale(.86)'}],{easing:'cubic-bezier(.15,.55,.2,1)'});
+    play($('.roulette-ball-track'),[{transform:$('.roulette-ball-track').style.transform||'rotate(0deg) scale(1.1)'},{transform:'rotate(-90deg) scale(1.1)',offset:.07},{transform:'rotate(-1200deg) scale(1.1)',offset:.66},{transform:'rotate(-1370deg) scale(.94)',offset:.79},{transform:'rotate(-1405deg) scale(.82)',offset:.86},{transform:'rotate(-1427deg) scale(.91)',offset:.91},{transform:'rotate(-1438deg) scale(.85)',offset:.96},{transform:'rotate(-1440deg) scale(.86)'}],{easing:'cubic-bezier(.15,.55,.2,1)'});
    }
    if(game==='wheel'){
     const from=wheelAngle;wheelAngle=Math.ceil(from/360)*360+1440+(360-outcome*45)%360;$('.wheel-readout').textContent='DAS RAD DREHT …';let previous=Math.floor(from/45),startTime;
-    const tick=now=>{if(!active)return;if(startTime===undefined)startTime=now;const p=Math.min(1,(now-startTime)/duration),angle=from+(wheelAngle-from)*(1-Math.pow(1-p,4));$('#wheel').style.transform='rotate('+angle+'deg)';const sector=Math.floor((angle+22.5)/45);if(sector!==previous){previous=sector;animate($('.wheel-pointer'),[{transform:'translateX(-50%) rotate(-24deg)'},{transform:'translateX(-50%) rotate(0)'}],{duration:120});}if(p<1)frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
+    const tick=now=>{if(!active)return;if(startTime===undefined)startTime=now;const p=Math.min(1,(now-startTime)/duration),angle=from+(wheelAngle-from)*(1-Math.pow(1-p,4));$('#wheel').style.transform='rotate('+angle+'deg)';const sector=Math.floor((angle+22.5)/45);if(sector!==previous){previous=sector;$('.wheel-readout').textContent=E.WHEEL[(8-((sector%8)+8)%8)%8]+'× · DAS RAD LÄUFT';animate($('.wheel-pointer'),[{transform:'translateX(-50%) rotate(-24deg)'},{transform:'translateX(-50%) rotate(0)'}],{duration:120});}if(p<1)frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);
    }
    if(game==='limbo'){
     const result=state.last.limbo,target=result.pick,value=result.result;let started;$('#visual-limbo').dataset.flight='flying';$('.limbo-flight-status').textContent='FLUG LÄUFT …';
-    const tick=now=>{if(!active)return;if(started===undefined)started=now;const p=Math.min(1,(now-started)/(duration-400));const climb=Math.log(value)*p,wave=Math.sin(p*Math.PI*4)*.55*Math.sin(p*Math.PI);limboDraw(Math.max(1,Math.exp(climb+wave)),target,p);if(p<1)frame=requestAnimationFrame(tick);else{$('#visual-limbo').dataset.flight=value>=target?'won':'crashed';$('.limbo-flight-status').textContent=value>=target?'ZIEL ERREICHT':'FLUG BEENDET';if(value<target)animate($('#limbo-rocket'),[{opacity:1},{opacity:.35,filter:'blur(1px)'}],{duration:350,fill:'forwards'});}};frame=requestAnimationFrame(tick);
+    const tick=now=>{if(!active)return;if(started===undefined)started=now;const p=Math.min(1,(now-started)/(duration-400));limboDraw(value,target,p);if(p<1)frame=requestAnimationFrame(tick);else{$('#visual-limbo').dataset.flight=value>=target?'won':'crashed';$('.limbo-flight-status').textContent=value>=target?'ZIEL ERREICHT':'FLUG BEENDET';if(value<target)animate($('#limbo-rocket'),[{opacity:1},{opacity:.35,filter:'blur(1px)'}],{duration:350,fill:'forwards'});}};frame=requestAnimationFrame(tick);
    }
    if(game==='keno'){
     const picked=state.last.keno.result.pick;setKeno([],[]);$('.keno-draw-label').textContent='DIE TROMMEL MISCHT …';

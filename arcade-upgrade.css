@@ -59,3 +59,26 @@
 .arcade-app #road-step{border:1px solid #e7ffc8;box-shadow:0 5px 0 #607c3155,0 0 25px #dcff8912}
 @media(max-width:700px){.arcade-app .roulette-scene{transform:scale(.78);margin:-12px -42px}.arcade-app .keno-legend{gap:9px;font-size:9px}.arcade-app #keno-grid button{min-height:46px;font-size:18px}}
 @media(prefers-reduced-motion:reduce){.arcade-app #visual-flight *{animation:none!important;transition:none!important}}
+/* Motion finishing pass: settle, light and depth without moving click targets. */
+.arcade-app .bj-card-front:after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(125deg,#fff7,transparent 35%,transparent 70%,#ffffff12);opacity:.55}
+.arcade-app .bj-dealing .bj-shoe{filter:drop-shadow(0 8px 8px #0004)}
+.arcade-app .bj-winning .bj-table-mark{filter:drop-shadow(0 0 12px #dcff8955)}
+.arcade-app .reel-winning{animation:reel-award .75s ease-out!important}
+@keyframes reel-award{0%{filter:brightness(1)}45%{filter:brightness(1.3);box-shadow:inset 0 0 30px #dcff8955}100%{filter:brightness(1)}}
+.arcade-app .mine-front{background-image:linear-gradient(135deg,#fff2,transparent 45%);text-shadow:0 6px 10px #0004}
+.arcade-app .mine-cell.safe.revealed .mine-front{box-shadow:inset 0 0 22px #dcff8918}
+.arcade-app .keno-draw>span.hit{animation:keno-hit-settle .65s ease-out}
+@keyframes keno-hit-settle{45%{box-shadow:0 0 24px #dcff8977;filter:brightness(1.2)}}
+.arcade-app .coin-shadow,.arcade-app .dice-shadow{filter:blur(9px)}
+.arcade-app .die-face{background:linear-gradient(145deg,#fff8e9,#d7ccb4);border-color:#fff8e3;box-shadow:inset 0 0 10px #77614022}
+.arcade-app .die-face .pip{background:radial-gradient(circle at 65% 70%,#596959,#172d2c);box-shadow:inset 1px 2px 3px #0006,0 1px 0 #fff9}
+.arcade-app #visual-flight[data-status=flying] #flying-foot ellipse{transform-origin:-14px 10px;animation:foot-thrust .5s ease-in-out infinite alternate}
+@keyframes foot-thrust{to{transform:scaleX(1.55);opacity:.4}}
+.arcade-app #visual-flight[data-status=crashed]{animation:flight-impact .45s ease-out}
+@keyframes flight-impact{20%{translate:-3px 0}40%{translate:3px 0}65%{translate:-1px 0}100%{translate:0 0}}
+.arcade-app .road-lane.cleared .road-barrier{transition:transform .3s cubic-bezier(.2,.75,.2,1),opacity .3s}
+.arcade-app .road-foot.walking:before{filter:blur(4px);transition:opacity .15s}
+.motion-resting,.motion-resting *,.motion-resting:before,.motion-resting:after{animation-play-state:paused!important}
+dialog[open]{animation:dialog-arrive .24s cubic-bezier(.2,.7,.2,1)}
+@keyframes dialog-arrive{from{opacity:0;transform:translateY(15px) scale(.98)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.arcade-app *,dialog[open]{animation:none!important;transition:none!important}}

@@ -8,11 +8,12 @@
  const reels=window.SockpotReels.create($$('.reel'),icons),roadView=window.FootRoad.create($('#visual-road'),E);
  const blackjackView=window.BlackjackMotion.create($('#visual-blackjack'),E);
  const plinkoView=window.LivePlinko.create($('#visual-plinko'),E.PLINKO,landBalls,saveBalls),scenes=window.ArcadeScenes.create(root,E);
+ const rouletteView=window.RouletteTable.create($('#roulette-table'),E,()=>render(),()=>$('#play').click());
  const names={flight:'Foot Flight',blackjack:'Blackjack',roulette:'Roulette',plinko:'Plinko',limbo:'Limbo',keno:'Keno',slots:'Sockpot',wheel:'Glücksrad',coin:'Fuß oder Socke',dice:'Würfelwerk',mines:'Socken-Minen',road:'Foot Road'};
- const titles={flight:'Dieser Fuß hebt ab.',blackjack:'21 Gründe, Toni zu schlagen.',roulette:'Eine Kugel. Deine Farbe.',plinko:'Lass die Coins fallen.',limbo:'Toni will hoch hinaus.',keno:'Deine Zahlen. Dein Moment.',slots:'Drei Walzen. Ein Sockpot.',wheel:'Heute dreht Toni das Rad.',coin:'Fuß oder Socke? Deine Wahl.',dice:'Große Würfe. Kleine Socken.',mines:'Sieben Füße. Zwei Socken.',road:'Ein Fuß. Endlose Straße. Keine Schuhe.'};
+ const titles={flight:'Dieser Fuß hebt ab.',blackjack:'21 Gründe, Toni zu schlagen.',roulette:'Dein Tisch. Deine Zahlen.',plinko:'Lass die Coins fallen.',limbo:'Toni will hoch hinaus.',keno:'Deine Zahlen. Dein Moment.',slots:'Drei Walzen. Ein Sockpot.',wheel:'Heute dreht Toni das Rad.',coin:'Fuß oder Socke? Deine Wahl.',dice:'Große Würfe. Kleine Socken.',mines:'Sieben Füße. Zwei Socken.',road:'Ein Fuß. Endlose Straße. Keine Schuhe.'};
  const rules={flight:'<p>Starte einen Flug und sichere deine Coins, solange der Fuß fliegt. Dein Einsatz wird mit dem angezeigten Faktor multipliziert. Nach einem Absturz ist der Einsatz verloren. Der Absturz wird beim Start zufällig festgelegt; Neuladen setzt denselben Flug fort.</p>',
   blackjack:'<p>Ein Deck mit 52 Karten. Ass zählt 1 oder 11, Bilder zählen 10. Dealer steht auf jeder 17. Ziehen oder Stehen; Verdoppeln ist nur mit den ersten zwei Karten möglich und gibt genau eine weitere Karte. Keine Teilung, keine Versicherung.</p><p>Blackjack zahlt 3:2 Gewinn, also 2,5× inklusive Einsatz (abgerundet). Normaler Sieg: 2×. Gleichstand: Einsatz zurück. Dealer-Blackjack wird sofort geprüft. Eine laufende Hand wird gespeichert.</p>',
-  roulette:'<p>Europäisches Rad: 0–36, jede Zahl gleich wahrscheinlich. Rot und Schwarz haben jeweils 18 Zahlen und zahlen 2×. Die grüne Null zahlt 36×.</p>',
+  roulette:'<p>Europäisches Roulette mit 0–36. Wähle einen Chipwert und setze mehrere Chips auf dem Tisch. Der Gesamteinsatz wird beim Start abgebucht. Einzelzahl 36×, Split 18×, Straße/Trio 12×, Ecke/erste Vier 9×, Sechserlinie 6×, Dutzend/Kolonne 3×, einfache Chancen 2× — jeweils inklusive Einsatz. Die Null verliert auf allen Außenchancen; kein La Partage.</p>',
   plinko:'<p>Der Ball fällt mit Schwerkraft und Dämpfung durch acht Pinreihen. Abpraller und Fachtrennungen werden mit Kreis-Kollisionen berechnet. Du kannst weitere Bälle starten, solange dein Guthaben reicht. Bälle stoßen auch miteinander zusammen. Jeder Ball hat seinen eigenen Einsatz und wird erst bei der Landung ausgezahlt. Ein kleiner zufälliger Startversatz und Startimpuls verändern den Verlauf; das tatsächlich erreichte Fach bestimmt die Auszahlung. Die Fächer sind nicht gleich wahrscheinlich.</p><p>Von links nach rechts: 12×, 3×, 1,2×, 0,5×, 0,2×, 0,5×, 1,2×, 3×, 12×. Auszahlung wird abgerundet.</p>',
   limbo:'<p>Wähle 2×, 5× oder 10×. Das Ergebnis muss dein Ziel erreichen. Die Gewinnchance beträgt 48 %, 19,2 % oder 9,6 %. Ein Treffer zahlt den gewählten Zielmultiplikator.</p>',
   keno:'<p>Wähle genau drei Zahlen aus 1–20. Fünf unterschiedliche Zahlen werden zufällig gezogen. 0 / 1 / 2 / 3 Treffer zahlen 0× / 1× / 4× / 40×.</p>', 
@@ -24,12 +25,15 @@
   road:'<p>Setze Feet Coins und gehe mit „Nächste Spur“ weiter. Nach jedem sicheren Schritt kannst du sichern oder weitergehen. Ein Autotreffer beendet die Runde ohne Auszahlung. Die Straße hat kein Ziel und kein automatisches Ende.</p><p>Das Trefferrisiko steigt mit jeder Spur: rund 18 % auf Spur 1, 40 % auf Spur 5 und 59 % auf Spur 10. Es nähert sich später 95 %. Jeder Schritt bleibt zufällig; es gibt keine festgelegte Todes-Spur. Das genaue Risiko der nächsten Spur steht über der Straße.</p><p>Der Multiplikator wächst passend zum Risiko. Auszahlungen enthalten den Einsatz und werden auf ganze Feet Coins abgerundet. Die technische Punkteobergrenze beträgt 1 Milliarde Feet Coins pro Konto; sie beendet den Fußweg nicht.</p><p>Die Autos stellen das Ergebnis dar. Warten oder schneller Klicken verändert die Chance nicht. Neuladen setzt die Runde und ihren Zufallsverlauf fort. Abbrechen verliert den Einsatz. Eigene Footverse-Spielregeln.</p>'
  };
  let state=E.fresh(),storageOK=true,busy=false,game='blackjack',bet=25,picks={coin:0,dice:0,roulette:0,limbo:2},kenoPicks=[3,7,16];
+ let visualGame='',resultStamp='';
  let pendingStorage,roundTimer,finishRound=null,extraFrame=0,extraAnimations=[],balanceFrame=0,shownBalance=null,balanceTarget=null;
  const reduced=matchMedia('(prefers-reduced-motion: reduce)');let motion=!reduced.matches;
  const activeGame=()=>state.blackjack?'blackjack':state.mines?'mines':state.road?'road':state.flight?'flight':state.plinko?.length?'plinko':null;
  const canAnimate=()=>motion&&!reduced.matches&&!document.body.classList.contains('fx-off');
  function persist(){try{localStorage.setItem(KEY,JSON.stringify(state));storageOK=true;}catch{storageOK=false;}}
  try{const stored=localStorage.getItem(KEY);if(stored)state=E.clean(JSON.parse(stored));else{const old=JSON.parse(localStorage.getItem(OLD)||'null');if(old&&Number.isSafeInteger(old.balance)&&old.balance>=0&&old.balance<=E.CAP){state.balance=old.balance;state.rounds=Number.isSafeInteger(old.spins)&&old.spins>=0?Math.min(E.CAP,old.spins):0;state.best=Number.isSafeInteger(old.best)&&old.best>=0?Math.min(E.CAP,old.best):0;}}}catch{storageOK=false;}
+ try{const savedBet=Number(localStorage.getItem(KEY+'-stake'));if(Number.isSafeInteger(savedBet)&&savedBet>0&&savedBet<=E.CAP)bet=savedBet;}catch{}
+ function rememberBet(){try{if(Number.isSafeInteger(bet)&&bet>0&&bet<=E.CAP)localStorage.setItem(KEY+'-stake',String(bet));}catch{}}
  const fmt=n=>new Intl.NumberFormat('de-AT').format(n);
  const factor=n=>n.toLocaleString('de-AT',{minimumFractionDigits:n<10000?2:0,maximumFractionDigits:2,notation:n>=10000?'compact':'standard'})+'×';
  const mult=n=>factor(E.roadMultiplier(n));
@@ -51,6 +55,7 @@
  function roadStep(){return state.road?.step??state.last.road?.result.step??0;}
  function renderVisual(){
   const r=state.last[game];
+  if(visualGame!==game){visualGame=game;const el=$('#visual-'+game);if(canAnimate())el.animate([{opacity:.25,transform:'translateY(12px)'},{opacity:1,transform:'translateY(0)'}],{duration:320,easing:'cubic-bezier(.2,.7,.2,1)'});}
   if(game==='slots')reels.show(r&&Array.isArray(r.result)?r.result:[0,1,3]);
   if(game==='mines'){
    const m=state.mines,ended=!m&&r?r.result:null;
@@ -73,6 +78,7 @@
  }
  function render(){
   const active=activeGame(),mineActive=game==='mines'&&state.mines,roadActive=game==='road'&&state.road,bjActive=game==='blackjack'&&state.blackjack,ownActive=mineActive||roadActive||bjActive||(game==='flight'&&state.flight);
+  $('#roulette-table').hidden=game!=='roulette';if(game==='roulette')rouletteView.render(state,busy,active,bet);$('.bet-group label').textContent=game==='roulette'?'CHIPWERT / FEET COINS':'EINSATZ / FEET COINS';
   if(!busy){updateBalance();$('#rounds').textContent=fmt(state.rounds);$('#wins').textContent=fmt(state.wins);$('#best').textContent=fmt(state.best)+' Feet Coins';renderVisual();}
   $$('#game-stage .game-visual').forEach(el=>el.hidden=el.id!=='visual-'+game);
   $('#game-stage').classList.toggle('road-selected',game==='road');
@@ -95,6 +101,7 @@
   $('#collect').disabled=busy||!collectible;$('#collect').textContent=collectible?`${fmt(collectible)} Feet Coins sichern →`:roadActive?'Erst eine Spur überqueren':'Feet Coins sichern';
   $('#road-step').disabled=busy||!roadActive;$('#road-step').textContent=busy?'Fuß ist unterwegs …':roadActive?`Nächste Spur · ${mult(state.road.step+1)} →`:'Nächste Spur →';
   $('#play').disabled=busy||Boolean(active&&!(active==='plinko'&&game==='plinko'))||!Number.isSafeInteger(bet)||bet<1||bet>E.CAP||state.balance<bet||(game==='keno'&&kenoPicks.length!==3);$('#play').textContent=busy?'Runde läuft …':(game==='flight'?'Flug starten':game==='blackjack'?'Karten geben':game==='roulette'?'Kugel drehen':game==='plinko'?'Ball fallen lassen':game==='limbo'?'Abheben':game==='keno'?'Zahlen ziehen':game==='road'?'Fußweg starten':game==='mines'?'Feld starten':game==='coin'?'Münze werfen':game==='dice'?'Würfeln':'Drehen')+' · '+(Number.isSafeInteger(bet)?fmt(bet):'–')+' Feet Coins';
+  if(game==='roulette'){$('#play').disabled=busy||Boolean(active)||!rouletteView.total()||rouletteView.total()>state.balance;$('#play').textContent=busy?'Kugel läuft …':'Kugel starten · '+fmt(rouletteView.total())+' Feet Coins';}
   $('#refill').hidden=state.balance!==0;$('#refill').disabled=busy||Boolean(active);
   $$('.table-actions button').forEach(el=>el.disabled=busy||!bjActive||(el.id==='bj-double'&&(state.blackjack?.player.length!==2||state.balance<state.blackjack?.bet)));
   $$('#keno-grid button').forEach(el=>el.disabled=busy||Boolean(active));$$('.mine-cell').forEach((el,i)=>el.disabled=busy||!state.mines||state.mines.open.includes(i));$('#cancel-mine').disabled=busy;
@@ -104,6 +111,7 @@
    $('#result').textContent=game==='flight'&&state.flight?'Sichere deine Coins, bevor der Fuß abstürzt.':game==='plinko'&&state.plinko.length?state.plinko.length+' Bälle unterwegs. Jeder weitere Klick startet einen neuen Ball.':!Number.isSafeInteger(bet)||bet<1?'Gib einen ganzen Einsatz ab 1 Feet Coin ein.':bjActive?'Deine Hand: '+E.handValue(state.blackjack.player)+' · Ziehen, Stehen oder Verdoppeln?':roadActive?(state.road.step?'Spur geschafft. Feet Coins sichern oder den nächsten Schritt wagen?':'Der Fuß wartet am Straßenrand. Wähle „Nächste Spur“.'):mineActive?(state.mines.open.length?'Fuß gefunden. Weiter öffnen oder Feet Coins sichern.':'Die Runde läuft. Wähle ein Feld.'):r?resultText(r):state.balance<bet?(state.balance===0?'Konto leer. Hol dir 100 Coins für die nächste Runde.':'Wähle einen kleineren Einsatz.'):'Wähle deinen Einsatz. Keine Socke muss dafür bezahlt werden.';
   }
   if(busy)return;
+  const stamp=game+JSON.stringify(state.last[game]);if(stamp!==resultStamp){resultStamp=stamp;if(state.last[game]&&!active&&canAnimate())$('#result').animate([{opacity:.3,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:380,easing:'ease-out'});}
   const rows=$('#history-rows');rows.replaceChildren();
   if(!state.history.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='Noch keine Runden. Die Socken sind tiefenentspannt.';tr.append(td);rows.append(tr);}else state.history.forEach(r=>{const tr=document.createElement('tr');[names[r.game],r.detail,fmt(r.bet)+' Feet Coins',fmt(r.payout)+' Feet Coins',(r.payout-r.bet>=0?'+':'')+fmt(r.payout-r.bet)+' Feet Coins'].forEach((value,i)=>{const td=document.createElement('td');td.textContent=value;if(i===4)td.className=r.payout>r.bet?'positive-text':'muted-text';tr.append(td);});rows.append(tr);});
  }
@@ -112,13 +120,14 @@
  function fail(error){stopExtra();busy=false;clearTimeout(roundTimer);finishRound=null;reels.finish();roadView.finish();blackjackView.finish();plinkoView.finish();scenes.finish();if(pendingStorage!==undefined){readExternalState(pendingStorage);pendingStorage=undefined;}$('#game-stage').classList.remove('is-rolling');render();$('#result').textContent=error.message||'Die Runde konnte nicht starten. Bitte noch einmal versuchen.';}
  function navigate(next,changeHash=true){if(!Object.prototype.hasOwnProperty.call(names,next)||busy)return;game=next;if(changeHash){try{history.replaceState(null,'','#'+(embedded?'sockpot-':'')+game);}catch{location.hash=(embedded?'sockpot-':'')+game;}}render();if(game==='road')roadView.focus(roadStep());}
  $$('[data-game]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.game)));
- $$('[data-bet]').forEach(button=>button.addEventListener('click',()=>{if(busy||(activeGame()&&activeGame()!=='plinko'))return;bet=Number(button.dataset.bet);render();}));
+ $$('[data-bet]').forEach(button=>button.addEventListener('click',()=>{if(busy||(activeGame()&&activeGame()!=='plinko'))return;bet=Number(button.dataset.bet);rememberBet();render();}));
  $$('[data-pick-game]').forEach(button=>button.addEventListener('click',()=>{if(busy||activeGame())return;picks[button.dataset.pickGame]=Number(button.dataset.pick);render();}));
- $('#bet-input').addEventListener('input',()=>{bet=$('#bet-input').value===''?NaN:Number($('#bet-input').value);render();});
- $$('[data-stake]').forEach(button=>button.addEventListener('click',()=>{if(busy||(activeGame()&&activeGame()!=='plinko'))return;const current=Number.isSafeInteger(bet)&&bet>0?bet:1;bet=button.dataset.stake==='all'?state.balance:button.dataset.stake==='half'?Math.max(1,Math.floor(current/2)):Math.min(E.CAP,current*2);$('#bet-input').value=bet;render();}));
+ $('#bet-input').addEventListener('input',()=>{bet=$('#bet-input').value===''?NaN:Number($('#bet-input').value);rememberBet();render();});
+ $$('[data-stake]').forEach(button=>button.addEventListener('click',()=>{if(busy||(activeGame()&&activeGame()!=='plinko'))return;const current=Number.isSafeInteger(bet)&&bet>0?bet:1;bet=button.dataset.stake==='all'?state.balance:button.dataset.stake==='half'?Math.max(1,Math.floor(current/2)):Math.min(E.CAP,current*2);$('#bet-input').value=bet;rememberBet();render();}));
  $('#play').addEventListener('click',()=>{
-  if(busy)return;
+  if(busy)return;bet=$('#bet-input').value===''?NaN:Number($('#bet-input').value);rememberBet();
   try{
+   if(game==='roulette'){const outcome=rand(37);state=E.rouletteRound(state,rouletteView.ticket(),outcome);rouletteView.commit();persist();$('#visual-roulette').scrollIntoView({behavior:canAnimate()?'smooth':'auto',block:'center'});busy=true;render();finishRound=complete;$('#game-stage').classList.add('is-rolling');$('#result').textContent='Rien ne va plus. Die Kugel rollt, deine Chips liegen.';scenes.start('roulette',outcome,state,4600,canAnimate(),complete);return;}
    if(game==='plinko'){state=E.dropPlinko(state,bet,crypto.randomUUID(),rand(4294967296));persist();plinkoView.sync(state.plinko);render();return;}
    if(game==='flight'){state=E.startFlight(state,bet,rand(1000000),Date.now());persist();render();runFlight();return;}
    if(game==='blackjack'){const before=state,next=E.startBlackjack(state,bet,shuffle(Array.from({length:52},(_,i)=>i)));busy=true;render();state=next;persist();finishRound=complete;$('#result').textContent='Die Karten werden ausgeteilt …';blackjackView.transition(before,next,canAnimate(),complete);return;}
@@ -168,11 +177,12 @@
   const stage=$('#visual-flight');stage.dataset.status=f?'flying':crashed?'crashed':r?'secured':'ready';$('#flight-factor').textContent=factor(Math.floor(value*100)/100);$('#flight-status').textContent=f?'FUSS IN DER LUFT':crashed?'ABGESTÜRZT':r?'COINS GESICHERT':'BEREIT ZUM ABHEBEN';
   const payout=f?Math.min(E.CAP-state.balance,Math.floor(f.bet*Math.floor(value*100)/100)):state.last.flight?.payout??0;$('#flight-value').textContent=f?fmt(payout)+' Feet Coins sicherbar':r?fmt(payout)+' Feet Coins zurück':'Dein Einsatz. Dein Ausstieg.';
   $('#flight-cashout').disabled=!f;$('#flight-cashout').textContent=f?fmt(payout)+' Feet Coins sichern →':'Feet Coins sichern';
-  const t=Math.log(value),x=45+Math.min(425,t*190),y=260-Math.min(215,t*110),endY=crashed?265:y,d='M45 260 Q '+(45+(x-45)*.65)+' 260 '+x+' '+endY;
+  const t=Math.log(value),x=45+425*(1-Math.exp(-t*.65)),y=260-215*(1-Math.exp(-t*.7)),endY=crashed?265:y,d='M45 260 Q '+(45+(x-45)*.65)+' 260 '+x+' '+endY;
   $('#flight-path').setAttribute('d',d);$('#flight-area').setAttribute('d',d+' L'+x+' 290 L45 290Z');$('#flying-foot').setAttribute('transform','translate('+x+' '+endY+') rotate('+(crashed?115:-25)+')');
  }
- function runFlight(){cancelAnimationFrame(flightFrame);flightFrame=0;if(!state.flight){drawFlight();return;}const next=E.finishFlight(state,Date.now());if(!next.flight){state=next;persist();render();return;}drawFlight();flightFrame=requestAnimationFrame(runFlight);}
+ function runFlight(){cancelAnimationFrame(flightFrame);flightFrame=0;if(!state.flight){drawFlight();return;}const now=Date.now();if(E.flightFactor(state.flight,now)>=state.flight.crash){state=E.finishFlight(state,now);persist();render();return;}drawFlight();flightFrame=requestAnimationFrame(runFlight);}
  $('#flight-cashout').addEventListener('click',()=>{if(!state.flight)return;state=E.finishFlight(state,Date.now(),true);persist();runFlight();render();});
+ window.addEventListener('pageshow',()=>{if(!busy&&!activeGame()){bet=$('#bet-input').value===''?NaN:Number($('#bet-input').value);rememberBet();render();}});
  window.addEventListener('pagehide',()=>saveBalls(plinkoView.snapshot()));
  const initial=location.hash.slice(1).replace(/^sockpot-/, '');game=Object.prototype.hasOwnProperty.call(names,initial)?initial:activeGame()||'blackjack';setMotion();render();plinkoView.sync(state.plinko);runFlight();if(game==='road')roadView.focus(roadStep());
 })();

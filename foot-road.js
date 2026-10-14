@@ -8,6 +8,9 @@
   const track=root.querySelector('.road-track'),viewport=root.querySelector('.road-viewport');
   const world=root.querySelector('.road-world'),runner=root.querySelector('.road-foot'),impact=root.querySelector('.road-impact');
   let tiles=[],base=0,pending=null,frame=0,lastStep=0;
+  const signal=root.querySelector('.road-signal-text');
+  let lastPhase='';
+  function phase(value,text){if(lastPhase!==value){root.setAttribute('data-road-phase',value);lastPhase=value;}if(signal&&signal.textContent!==text)signal.textContent=text;}
   const number=n=>new Intl.NumberFormat('de-AT',{maximumFractionDigits:2,notation:n>=10000?'compact':'standard'}).format(n);
   function makeTile(index){
    const el=document.createElement('div'),numberEl=document.createElement('small'),badge=document.createElement('b');
@@ -48,6 +51,7 @@
     t.el.classList.toggle('next',t.index===step+1&&status!=='crash'&&status!=='cashout');
    });
    impact.hidden=status!=='crash';root.classList.toggle('road-won',status==='cashout');
+   phase(status,status==='crash'?'AUTSCH. DER VERKEHR FÄHRT WEITER.':status==='cashout'?'ANGEKOMMEN. COINS GESICHERT.':step?'SPUR GESCHAFFT · WEITER ODER SICHERN':'FOOT ROAD · NACHTSCHICHT');
    viewport.setAttribute('aria-label',status==='crash'?`Fuß auf Spur ${step} vom Auto erwischt.`:`Fuß ${step===0?'am Start':'auf Spur '+step}. Die Straße geht endlos weiter.`);
    if(focus)viewport.scrollLeft=targetCamera(step);
   }
@@ -76,6 +80,7 @@
    const duration=crash?contact+(carEnd-carContact)/speed+100:walkStart+walkDuration+160;
    tile.car.style.animation='none';tile.car.style.transform=`translate3d(0,${carStart}px,0)`;
    pending=done;impact.hidden=true;runner.classList.remove('hit');root.classList.add('road-moving');
+   phase('waiting','VERKEHR ROLLT · DER FUSS WARTET');
    tile.el.classList.add('crossing');
    const cameraStart=viewport.scrollLeft||0,cameraEnd=targetCamera(step),startX=step-1-base+.5,endX=step-base+.5;
    let start,hit=false;
@@ -84,6 +89,7 @@
     if(start===undefined)start=now;
     const t=Math.min(duration,now-start),progress=clamp((t-walkStart)/walkDuration),walk=ease(progress);
     runner.classList.toggle('walking',progress>0&&progress<1&&!hit);
+    if(progress>0&&!hit)phase('crossing','DER FUSS IST UNTERWEGS');
     runner.style.left=`calc(var(--lane-width) * ${mix(startX,endX,walk)})`;
     viewport.scrollLeft=mix(cameraStart,cameraEnd,ease((t-walkStart)/Math.max(600,walkDuration)));
     if(!hit){const gait=Math.sin(progress*Math.PI*2);pose(-Math.abs(gait)*13,26+gait*9,1-Math.abs(gait)*.035);}
@@ -93,6 +99,7 @@
     tile.car.style.transform=`translate3d(0,${Math.min(carEnd,carY)}px,0)`;tile.car.style.setProperty('--speed-trail',crash?'.08':Math.min(1,(speed+acceleration*t)*.5));
     if(crash&&t>=contact){
      if(!hit){hit=true;runner.classList.remove('walking');runner.classList.add('hit');root.classList.add('road-impact-now');impact.hidden=false;}
+     phase('crash','AUTSCH. DER VERKEHR FÄHRT WEITER.');
      const decay=Math.max(0,1-(t-contact)/230);world.style.transform=`translate3d(${Math.sin(t*.13)*4*decay}px,${Math.cos(t*.15)*2*decay}px,0)`;
     }
     if(t>=duration)finish();else frame=requestAnimationFrame(tick);

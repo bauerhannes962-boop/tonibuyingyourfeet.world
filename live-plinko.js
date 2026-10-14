@@ -29,7 +29,7 @@
   function snapshot(){return balls.map(b=>({...b}));}
   function tick(now){raf=0;if(!balls.length)return;acc+=last?Math.min(.05,(now-last)/1000):0;last=now;
    while(acc>=DT){acc-=DT;const landed=step(balls);if(landed.length){const positions=new Map(balls.map(b=>[b.id,{...b}])),ids=new Set(landed.map(b=>b.id));balls=balls.filter(b=>!ids.has(b.id));onLand(landed,snapshot());for(const b of landed)painter.land(positions.get(b.id),b.bin);}}
-   if(balls.length)painter.drawMany(balls);status.textContent=balls.length?balls.length+' Bälle unterwegs · Klicke für den nächsten Ball.':'Alle Bälle gelandet. Bereit für den nächsten Drop.';
+   if(balls.length&&!root.hidden)painter.drawMany(balls);const label=balls.length?balls.length+' Bälle unterwegs · Klicke für den nächsten Ball.':'Alle Bälle gelandet. Bereit für den nächsten Drop.';if(status.textContent!==label)status.textContent=label;
    if(now-saved>250){saved=now;onSnapshot(snapshot());}if(balls.length)raf=requestAnimationFrame(tick);else{last=0;onSnapshot([]);}
   }
   function sync(entries){const old=new Map(balls.map(b=>[b.id,b]));balls=entries.map(b=>old.get(b.id)||body(b));if(balls.length&&!raf)raf=requestAnimationFrame(tick);if(!balls.length){cancelAnimationFrame(raf);raf=0;last=0;}}
